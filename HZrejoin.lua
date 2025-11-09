@@ -1,118 +1,148 @@
--- 🔁 Minimal Auto Rejoin Toolbar (by ChatGPT)
--- ✅ Gọn gàng: chỉ có 1 nút bật/tắt và thanh thời gian đếm ngược
+-- 🔁 Auto Rejoin Game (Hidden Start Version by ChatGPT)
+-- ✅ Mặc định ẩn giao diện, có nút bật/tắt, rejoin an toàn, fix lỗi nhân vật
 
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
--- ⚙️ Cấu hình
-local targetPlaceId = 103754275310547 -- 👈 ID game muốn rejoin
-local delayTime = 60 -- 1 phút = 60 giây (thay tuỳ ý)
+-- 🧭 Cấu hình
+local targetPlaceId = 103754275310547 -- ⚠️ Thay bằng ID game muốn vào
+local delayTime = 300 -- 10 phút = 600 giây
 
 -- ==============================
--- 🧱 GIAO DIỆN TOOLBAR
+-- 🪟 GIAO DIỆN
 -- ==============================
 local gui = Instance.new("ScreenGui")
-gui.Name = "RejoinToolbar"
+gui.Name = "SafeRejoinUI"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local toolbar = Instance.new("Frame", gui)
-toolbar.Size = UDim2.new(1, 0, 0, 40)
-toolbar.Position = UDim2.new(0, 0, 0, 0)
-toolbar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-toolbar.BorderSizePixel = 0
+-- 🔲 Khung UI chính (ẩn mặc định)
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 280, 0, 160)
+frame.Position = UDim2.new(0.5, -140, 0.5, -80)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+frame.Active = true
+frame.Draggable = true
+frame.Visible = false -- ⚙️ Ẩn khi vừa vào
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
-local stroke = Instance.new("UIStroke", toolbar)
-stroke.Color = Color3.fromRGB(90, 150, 255)
-stroke.Thickness = 1.5
-stroke.Transparency = 0.5
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+title.Text = "🔁 Safe Auto Rejoin"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
 
--- Nút bật/tắt 🔁 / ❌
-local toggleBtn = Instance.new("TextButton", toolbar)
-toggleBtn.Size = UDim2.new(0, 80, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 0.5, -15)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
-toggleBtn.Text = "🔁"
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 20
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
-
--- Đồng hồ đếm ngược
-local countdownLabel = Instance.new("TextLabel", toolbar)
-countdownLabel.Size = UDim2.new(0, 150, 0, 30)
-countdownLabel.Position = UDim2.new(1, -160, 0.5, -15)
+local countdownLabel = Instance.new("TextLabel", frame)
+countdownLabel.Size = UDim2.new(1, -20, 0, 60)
+countdownLabel.Position = UDim2.new(0, 10, 0, 50)
 countdownLabel.BackgroundTransparency = 1
-countdownLabel.Font = Enum.Font.GothamBold
-countdownLabel.Text = "00:00"
-countdownLabel.TextSize = 22
+countdownLabel.Text = "Time Remaining: 10:00"
 countdownLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
-countdownLabel.TextXAlignment = Enum.TextXAlignment.Right
+countdownLabel.Font = Enum.Font.GothamBold
+countdownLabel.TextSize = 22
+countdownLabel.TextWrapped = true
+
+local cancelBtn = Instance.new("TextButton", frame)
+cancelBtn.Size = UDim2.new(0.6, 0, 0, 35)
+cancelBtn.Position = UDim2.new(0.2, 0, 1, -45)
+cancelBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+cancelBtn.Font = Enum.Font.GothamBold
+cancelBtn.Text = "Cancel Rejoin"
+cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+cancelBtn.TextSize = 18
+Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0, 8)
 
 -- ==============================
--- ⚙️ LOGIC
+-- 🎛️ NÚT ẨN / HIỆN
 -- ==============================
-local active = false
-local remaining = delayTime
+local toggleBtn = Instance.new("ImageButton", gui)
+toggleBtn.Size = UDim2.new(0, 45, 0, 45)
+toggleBtn.Position = UDim2.new(0, 25, 0.85, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+toggleBtn.Image = "rbxassetid://3926307971"
+toggleBtn.ImageRectOffset = Vector2.new(964, 324)
+toggleBtn.ImageRectSize = Vector2.new(36, 36)
+toggleBtn.AutoButtonColor = false
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
 
+local stroke = Instance.new("UIStroke", toggleBtn)
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Thickness = 1.5
+stroke.Transparency = 0.4
+
+local hidden = true -- ⚙️ Ban đầu ẩn UI
+toggleBtn.MouseButton1Click:Connect(function()
+	hidden = not hidden
+	if hidden then
+		TweenService:Create(frame, TweenInfo.new(0.25), {Position = UDim2.new(0.5, -140, 1, 200)}):Play()
+		task.wait(0.25)
+		frame.Visible = false
+	else
+		frame.Visible = true
+		TweenService:Create(frame, TweenInfo.new(0.25), {Position = UDim2.new(0.5, -140, 0.5, -80)}):Play()
+	end
+end)
+
+-- ==============================
+-- ⏱️ LOGIC ĐẾM NGƯỢC
+-- ==============================
+local cancelled = false
 local function formatTime(seconds)
 	local mins = math.floor(seconds / 60)
 	local secs = seconds % 60
 	return string.format("%02d:%02d", mins, secs)
 end
 
--- Cập nhật đồng hồ đếm ngược
-task.spawn(function()
-	while task.wait(1) do
-		if active then
-			if remaining > 0 then
-				remaining -= 1
-				countdownLabel.Text = formatTime(remaining)
-			else
-				countdownLabel.Text = "🔁 Rejoining..."
-				task.wait(1)
+cancelBtn.MouseButton1Click:Connect(function()
+	cancelled = true
+	countdownLabel.Text = "❌ Rejoin Cancelled"
+	cancelBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	cancelBtn.Text = "Cancelled"
+end)
 
-				pcall(function()
-					if player.Character then player.Character:Destroy() end
-				end)
-				task.wait(1)
+for i = delayTime, 0, -1 do
+	if cancelled then break end
+	countdownLabel.Text = "Time Remaining: " .. formatTime(i)
+	task.wait(1)
+end
 
-				local success, err = pcall(function()
-					TeleportService:Teleport(targetPlaceId, player)
-				end)
-				if not success then
-					warn("[Teleport Error]:", err)
-					countdownLabel.Text = "⚠️ Retry..."
-					task.wait(3)
-					TeleportService:Teleport(targetPlaceId, player)
-				end
-				break
-			end
+-- ==============================
+-- 🔄 SAFE TELEPORT
+-- ==============================
+if not cancelled then
+	countdownLabel.Text = "🧹 Cleaning character..."
+	task.wait(1)
+
+	pcall(function()
+		if player.Character then
+			player.Character:Destroy()
 		end
-	end
-end)
+	end)
+	task.wait(2)
 
--- ==============================
--- 🔘 NÚT BẬT / TẮT
--- ==============================
-toggleBtn.MouseButton1Click:Connect(function()
-	active = not active
-	if active then
-		remaining = delayTime
-		toggleBtn.Text = "❌"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-		countdownLabel.Text = formatTime(remaining)
-	else
-		toggleBtn.Text = "🔁"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
-		countdownLabel.Text = "00:00"
-	end
-end)
+	countdownLabel.Text = "🔁 Rejoining safely..."
+	task.wait(1)
 
--- Nếu teleport lỗi → thử lại
+	local success, err = pcall(function()
+		TeleportService:Teleport(targetPlaceId, player)
+	end)
+
+	if not success then
+		warn("[Teleport Error]:", err)
+		countdownLabel.Text = "⚠️ Teleport failed, retrying..."
+		task.wait(3)
+		TeleportService:Teleport(targetPlaceId, player)
+	end
+end
+
 TeleportService.TeleportInitFailed:Connect(function(_, result, message)
 	warn("⚠️ Teleport failed:", result, message)
 	task.wait(2)
